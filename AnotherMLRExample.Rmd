@@ -1,0 +1,69 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+## Another Multiple Linear Regression Example
+
+Another example using the Credit dataset.  
+
+Libraries  
+```{r}
+library(tidyverse)
+library(GGally) #for ggpairs function
+library(MASS) #access to forward and backward selection algorithms
+library(leaps) #best subset selection
+```
+
+Read-in dataset  
+```{r}
+credit = read_csv("CreditData.csv")
+```
+
+Get rid of missing data rows  
+```{r}
+credit = credit %>% drop_na() #delete any row with an NA value
+str(credit) #check structure after the drop
+```
+
+Our Y (response) variable in this dataset is "AnnualCharges".  Let's look at ggpairs plot for visualization and correlation.  
+```{r}
+ggpairs(credit)
+```
+
+Model with best single variable (by correlation).  
+```{r}
+mod1 = lm(AnnualCharges ~ AnnualIncome, credit) #create linear regression model
+summary(mod1) #examine the model
+```
+Adjusted R-squared value of this univariate model is: 0.3152. Can we improve upon this by adding additional variables?  
+
+Start by building two models: One model that contains all of the predictors and one that is empty.
+```{R}
+allmod = lm(AnnualCharges ~., credit) #use the ~. to include all predictors rather than typing them all in
+summary(allmod)
+
+emptymod = lm(AnnualCharges ~1, credit) #use ~1 to build an empty model
+summary(emptymod)
+```
+Backward stepwise regression
+```{r}
+#backward
+backmod = stepAIC(allmod, direction = "backward", trace = TRUE) 
+#trace = TRUE shows how the model is built (which variables are removed)
+summary(backmod)
+```
+Backward does not strip any variables out.  
+
+Forward stepwise regression
+```{r}
+#forward
+forwardmod = stepAIC(emptymod, direction = "forward", scope=list(upper=allmod,lower=emptymod),
+                      trace = TRUE) #trace = TRUE shows how the model is built (which variables are added)
+summary(forwardmod) #note multicollinearity with FullBath with a negative coefficient
+```
+Forward yields same model.  
+
+
+

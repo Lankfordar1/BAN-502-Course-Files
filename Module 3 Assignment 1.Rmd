@@ -1,0 +1,122 @@
+---
+title: "BAN 502 Module 3 Assignment 1"
+author: "Austin Lankford"
+date: "2/10/2020"
+output: word_document
+---
+
+```{r}
+library(tidyverse)
+library(MASS)
+library(caret)
+```
+
+```{r}
+library(readr)
+bike <- read_csv("hour.csv")
+View(bike)
+```
+
+```{r}
+bike = bike %>% mutate(season = as_factor(as.character(season))) %>%
+mutate(season = fct_recode(season,
+"Spring" = "1",
+"Summer" = "2",
+"Fall" = "3",
+"Winter" = "4"))
+```
+
+```{r}
+bike = bike %>% mutate(yr = as_factor(as.character(yr)))
+bike = bike %>% mutate(mnth = as_factor(as.character(mnth)))
+bike = bike %>% mutate(hr = as_factor(as.character(hr)))
+```
+
+```{r}
+ = bike %>% mutate(holiday = as_factor(as.character(holiday))) %>%
+mutate(holiday = fct_recode(holiday,
+"NotHoliday" = "0",
+"Holiday" = "1"))
+```
+
+```{r}
+bike = bike %>% mutate(workingday = as_factor(as.character(workingday))) %>%
+mutate(workingday = fct_recode(workingday,
+"NotWorkingday" = "0",
+"Workingday" = "1"))
+```
+
+```{r}
+bike = bike %>% mutate(weathersit = as_factor(as.character(weathersit))) %>%
+mutate(weathersit = fct_recode(weathersit,
+"NoPrecip" = "1",
+"Misty" = "2",
+"LightPrecip" = "3",
+"HeavyPrecip" = "4"))
+```
+
+```{r}
+bike = bike %>% mutate(weekday = as_factor(as.character(weekday))) %>%
+mutate(weekday = fct_recode(weekday,
+"Monday" = "1",
+"Tuesday" = "2",
+"Wednesday" = "3",
+"Thursday" = "4",
+"Friday" = "5",
+"Saturday" ="6",
+"Sunday" = "0"))
+```
+
+```{r}
+#summary(bike)
+#str(bike)
+#glimpse(bike)
+```
+
+
+## The training set has 12,617 rows
+## The testing set has 5,212 rows
+
+```{r}
+set.seed(1234) 
+train.rows = createDataPartition(y = bike$count , p=0.7, list = FALSE)
+train = bike[train.rows,] 
+test = bike[-train.rows,]
+
+```
+
+# The Multiple R-squared is  0.6217, the Adjusted R-squared is  0.6202. Although not every variable is significant.
+```{r}
+Model_1 = lm(count ~ + season + mnth + hr + holiday + weekday + weathersit + temp, train,) 
+summary(Model_1)
+```
+
+### The prediction values from the testing set are much higher (based on the first 6 rows) than the testing set. The upper and lower intervals are a bit tighter as well. Although this is only based on the first 6 rows. I am a bit confused on exactly how to interpret the findings here. watching the lecture videos, when we add c(75,100), I can see that the fit values returned correspond directly to the values of 75/100 as an predictor but when I see -37.68 in row one under fit, I'm not sure if that's the difference in prediction or if that is the prediction itself. 
+
+```{r}
+train_preds = data.frame(predict(Model_1, newdata = train, interval = "predict"))
+head(train_preds, 6)
+
+
+```
+
+
+```{r}
+test_preds = data.frame(predict(Model_1, newdata = test, interval = "predict"))
+head(test_preds, 6)
+```
+
+
+
+# The Multiple R-squared is  0.6217, the Adjusted R-squared is  0.6202. 
+```{r}
+SSE = sum((test$count - test_preds)^2)
+
+SST = sum((test$count - mean(test$count))^2) 
+
+1 - SSE/SST #
+```
+
+## K Fold Cross and training/test splits are essentially the same concept but they differ in that the split creates two data sets from one. The train set is meant to build a model and the test set is meant to act as "real world" instances of an event to test the model. K Fold Cross works to achieve the same goal as train/test splits except that in doesn't rely on one individual split. It will creat K number of splits (usually 10) and run mutliple interations on these splits to give your model development "randomness". Some sets will have major outliers, missing data, perfectly fit data, zero values, etc. Collectively the idea is to "average" the best fit based on the aggregate output.
+
+

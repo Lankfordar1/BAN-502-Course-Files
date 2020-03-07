@@ -1,0 +1,108 @@
+---
+title: "Module 2 Linear Regression"
+author: "Austin Lankford"
+date: "2/3/2020"
+output: word_document
+---
+
+```{r}
+air = airquality
+```
+
+```{r}
+#install.packages("car")
+#install.packages("lmtest")
+library(car)
+library(lmtest)
+library(tidyverse)
+library(GGally)
+library(naniar)
+```
+
+# Dataset Exploration
+## There are 7 NA's from Solar.R, 37 NA's from Ozone but the rest of the data seems to be intact. In total there are 153 observations and 6 total variables. 
+
+```{r}
+summary(air)
+str(air)
+glimpse(air)
+```
+
+
+```{r}
+gg_miss_var(air)
+```
+
+# Deletion of NA's
+## After deleting the NA's, there are 111 observations for the remaining 6 variables.
+```{r}
+air = air %>%
+  drop_na()
+```
+
+```{r}
+summary(air)
+str(air)
+gg_miss_var(air)
+```
+
+# Correlation
+## In reference to the Ozone field, the strongest correlation is with Temp and wind, the weakest correlation is with Day.
+
+```{r}
+ggpairs(air, label = TRUE)
+```
+
+```{r}
+ggcorr(air)
+```
+
+# Data Visualization
+## There is a positive linear relationship between Temp and Ozone as demonstrated in the scatterplot below.
+
+```{r}
+ggplot(air) +
+ aes(x = Temp, y = Ozone) +
+ geom_point(size = 1L, colour = "#0c4c8a") +
+ theme_minimal()
+```
+
+# Simple Linear Regression
+## The simple linear regression with Temp predicting Ozone produces a p value that is statistically significant and an R squared that accounts for roughly 48% of the variance. The adjusted R Squared does not change much from the regular R Squared so I would say this is a reliable statistic.
+
+```{r}
+regression = lm(Ozone ~ Temp, air) 
+summary(regression) 
+
+```
+
+```{r}
+ggplot(air) +
+ aes(x = Temp, y = Ozone) +
+ geom_point(size = 1L, colour = "#0c4c8a") + geom_smooth()
+ theme_minimal()
+```
+
+```{r}
+testdata = data.frame(Temp = c(80))
+predict(regression, newdata = testdata, interval = "predict")
+```
+
+# Testing Model
+## The model is useful to some extent as a predictive model but can be made better by adding more variables, although not all variables are significant and should be excluded.
+```{r}
+emptymod = lm(Ozone ~1, air)
+summary(emptymod)
+
+allmod = lm(Ozone ~ Temp + Solar.R + Wind + Day + Month, air, ) 
+summary(allmod)
+```
+
+```{r}
+
+```
+
+
+
+
+

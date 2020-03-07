@@ -1,0 +1,64 @@
+## Regression Trees
+
+Libraries  
+```{r}
+library(tidyverse)
+library(caret) 
+library(rpart)
+library(rattle)
+library(RColorBrewer)
+```
+
+Read-in dataset  
+```{r}
+credit = read_csv("CreditData.csv")
+```
+
+Get rid of missing data rows (**any data cleaning/prepartion should take place before splitting**).  
+```{r}
+credit = credit %>% drop_na() #delete any row with an NA value
+str(credit) #check structure after the drop
+```
+
+Split the data (training and testing)  
+```{r}
+set.seed(123)
+train.rows = createDataPartition(y = credit$AnnualCharges, p=0.7, list = FALSE) #70% in training
+train = credit[train.rows,] 
+test = credit[-train.rows,]
+```
+
+Create regression tree  
+```{r}
+regtree1 = rpart(AnnualCharges~., method="anova", train)
+fancyRpartPlot(regtree1)
+printcp(regtree1)  
+plotcp(regtree1) 
+```
+Develop predictions on the training set
+```{r}
+train_preds = predict(regtree1)
+head(train_preds) #see first six predictions
+```
+
+Now we can manually calculate the R squared value on train
+```{r}
+SSE = sum((train$AnnualCharges - train_preds)^2) #sum of squared residuals from model
+SST = sum((train$AnnualCharges - mean(train$AnnualCharges))^2) #sum of squared residuals from a "naive" model
+1 - SSE/SST #definition of R squared
+```
+
+Develop predictions on the testing set
+```{r}
+test_preds = predict(regtree1, newdata = test)
+```
+
+Now we can manually calculate the R squared value on test
+```{r}
+SSE = sum((test$AnnualCharges - test_preds)^2) #sum of squared residuals from model
+SST = sum((test$AnnualCharges - mean(test$AnnualCharges))^2) #sum of squared residuals from a "naive" model
+1 - SSE/SST #definition of R squared
+```
+
+
+

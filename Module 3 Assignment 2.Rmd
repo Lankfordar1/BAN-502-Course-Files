@@ -1,0 +1,279 @@
+---
+title: "Module 3 Assignment 2"
+author: "Austin Lankford"
+date: "2/11/2020"
+output: word_document
+---
+
+
+```{r}
+library(tidyverse)
+library(MASS)
+library(ROCR)
+library(readr)
+library(caret)
+library(e1071)
+```
+
+```{r}
+parole <- read.csv("parole.csv")
+summary(parole)
+```
+
+
+
+```{r}
+parole = parole %>% mutate(male = as_factor(as.character(male))) %>%
+mutate(male = fct_recode(male,
+"female" = "0",
+"male" = "1"))
+
+```
+
+
+```{r}
+
+parole = parole %>% mutate(state = as_factor(as.character(state))) %>%
+mutate(state = fct_recode(state,
+"Other" = "1",
+"Kentucky" = "2",
+"Louisiana" = "3",
+"Virginia" = "4"))
+
+```
+
+```{r}
+parole = parole %>% mutate(race = as_factor(as.character(race))) %>%
+mutate(race = fct_recode(race,
+"not_white" = "2",
+"white" = "1"))
+```
+
+```{r}
+parole = parole %>% mutate(violator = as_factor(as.character(violator))) %>%
+mutate(violator = fct_recode(violator,
+"no" = "0",
+"yes" = "1"))
+```
+
+```{r}
+
+parole = parole %>% mutate(crime = as_factor(as.character(crime))) %>%
+mutate(crime = fct_recode(crime,
+"Other" = "1",
+"larceny" = "2",
+"drugs" = "3",
+"driving" = "4"))
+
+
+```
+
+```{r}
+parole = parole %>% mutate(multiple.offenses = as_factor(as.character(multiple.offenses))) %>%
+mutate(multiple.offenses = fct_recode(multiple.offenses,
+"no" = "0",
+"yes" = "1"))
+```
+
+
+```{r}
+set.seed(1234) 
+train.rows = createDataPartition(y = parole$violator, p=0.7, list = FALSE)
+train = parole[train.rows,] 
+test = parole[-train.rows,]
+```
+
+
+### Based on the data visualizations,there are a few things that can be determined. There are more men than women, and of those men, there are more white men than non-white men. There are more male parole violations in virginia and for females, there are more in Louisiana. In general, there are more observations from virginia in the data set. Although I cant say much for the ratios. This could be a result of data sampling. It seems that most violations occur between ages 20-35, except when State = "Other" for women, the median age is a few years higher. For women, larceny seems to be significant in predicting parole violation, while for men "other" seems to be significant. The majority of the "non-violation" seem to have occured for both men and women when the crime committed is driving related. Time served & crime = drugs is also seemingly significant for both genders for non violation observations.
+
+```{r, echo=FALSE}
+ggplot(train) +
+ aes(x = male, fill = race) +
+ geom_bar() +
+ scale_fill_hue()
+
+```
+
+```{r, echo=FALSE}
+
+ggplot(train) +
+ aes(x = violator, fill = state) +
+ geom_bar() +
+ scale_fill_hue()
+
+```
+
+```{r, echo=FALSE}
+ggplot(train) +
+ aes(x = violator, fill = race) +
+ geom_bar() +
+ scale_fill_hue()
+
+```
+
+
+
+```{r, echo=FALSE}
+ggplot(parole) +
+ aes(x = state) +
+ geom_bar(fill = "#0c4c8a")
+
+```
+
+
+```{r, echo=FALSE}
+ggplot(train) +
+ aes(x = violator, y = age, fill = race) +
+ geom_boxplot() +
+ scale_fill_hue() +
+ labs(x = "Parole Violation (Y/N)", y = "Age", fill = "Race") +
+ facet_wrap(vars(state))
+
+```
+
+```{r, echo=FALSE}
+ggplot(train) +
+ aes(x = violator, y = time.served, fill = male) +
+ geom_boxplot() +
+ scale_fill_hue() +
+ theme_minimal() +
+ facet_wrap(vars(state))
+
+```
+
+```{r,echo=FALSE}
+
+ggplot(train) +
+ aes(x = violator, y = age, fill = crime) +
+ geom_boxplot() +
+ scale_fill_hue() +
+ theme_minimal() +
+ facet_wrap(vars(male))
+
+
+```
+
+```{r, echo=FALSE}
+ggplot(train) +
+ aes(x = violator, y = time.served, fill = crime) +
+ geom_boxplot() +
+ scale_fill_hue() +
+ theme_minimal() +
+ facet_wrap(vars(male))
+
+```
+
+```{r, echo=FALSE}
+ggplot(train) +
+ aes(x = violator, y = multiple.offenses, fill = male) +
+ geom_boxplot() +
+ scale_fill_hue() +
+ theme_minimal() +
+ facet_wrap(vars(multiple.offenses))
+
+```
+
+
+
+```{r}
+emptymod = glm(violator ~1, train, family = "binomial") 
+summary(emptymod)
+
+```
+
+
+```{r}
+allmod = glm(violator ~ race + male + time.served + age + max.sentence + multiple.offenses + train$crime + state, train, family = "binomial") 
+summary(allmod) 
+
+```
+
+### Both back and forward models have produced an AIC of 271.29, seemingly the lowest acheivable with the training set. The variables chosen for the model are multiple offense = yes, and state = Kentucky, Louisian, and Virginia. Although the state of Kentucky is not within the relevant for for statistical significance in model development. That's also not to say that the other factors don't play a role but there likely wasn't enough evidence to conclude that there is a statistically significant relationship. The wider the spread the more noise generated making it more difficult to conclude that the variables are related. 
+
+```{r}
+backmod = stepAIC(allmod, direction = "backward", trace = TRUE) 
+```
+
+```{r}
+forwardmod = stepAIC(emptymod, direction = "forward", scope=list(upper=allmod,lower=emptymod),trace = TRUE) 
+
+```
+
+
+```{r}
+summary(backmod)
+```
+
+```{r}
+summary(forwardmod)
+```
+
+### The variables state = Louisiana, and Virginia are significant as is the multiple offenses = yes variable.
+```{r}
+Task_5_Model <-  glm(formula = violator ~ state + multiple.offenses + race, family = "binomial", data = train)
+summary(Task_5_Model)
+```
+
+```{r}
+predicttrain = predict(forwardmod, type="response") 
+table(train$violator, predicttrain > 0.5) 
+head(predicttrain)
+
+```
+
+```{r}
+t1 = table(train$violator, predicttrain > 0.5)
+```
+
+
+```{r}
+(t1[1,1]+t1[2,2])/nrow(train) 
+```
+
+
+
+```{r, echo=FALSE}
+#ROCRperf = performance(ROCRpred, "tpr", "fpr")
+#plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+```
+
+```{r}
+#as.numeric(performance(ROCRpred, "auc")@y.values)
+```
+
+### The accuracy is 83.6%, sensitivity is 90.9%, and specificity is 54.1%.
+
+```{r}
+#opt.cut = function(perf, pred){
+    #cut.ind = mapply(FUN=function(x, y, p){
+        #d = (x - 0)^2 + (y-2.747)^2
+        #ind = which(d == min(d))
+        #c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            #cutoff = p[[ind]])
+    #}, perf@x.values, perf@y.values, pred@cutoffs)
+#}
+#print(opt.cut(ROCRperf, ROCRpred))
+
+```
+
+### Both parolees have the same probability of violating their parole.
+
+```{r}
+parolee1 = data.frame(state = "Louisiana", multiple.offenses = "yes", race = "white")
+predict(forwardmod, parolee1, type="response")
+```
+
+```{r}
+parolee2 = data.frame(state = "Kentucky", multiple.offenses = "no", race = "not_white")
+predict(forwardmod, parolee1, type="response")
+```
+
+### Testing model on the testing set.
+
+```{r}
+testpreds = data.frame(predict(forwardmod,test,type = "response"))
+head(testpreds,6)
+```
+
+
+

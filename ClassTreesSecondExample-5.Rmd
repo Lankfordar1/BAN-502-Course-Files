@@ -1,0 +1,85 @@
+## Classification Tree (Another example)
+
+Libraries  
+```{r}
+library(tidyverse)
+library(caret) #for splitting functions
+library(rpart) #for classification trees
+library(RColorBrewer) #better visualization of classification trees
+library(rattle) #better visualization of classification trees
+```
+
+Load data from the CSData.csv file.  
+```{r}
+credit = read_csv("CSData.csv")
+```
+
+Structure and summary
+```{R}
+str(credit)
+summary(credit)
+```
+
+Factor conversion. Convert the response variable SeriousDlqin2yrs.
+```{r}
+credit = credit %>% mutate(SeriousDlqin2yrs = as.factor(SeriousDlqin2yrs)) %>% 
+  mutate(SeriousDlqin2yrs = fct_recode(SeriousDlqin2yrs, "No" = "0", "Yes" = "1" )) 
+
+str(credit)
+```
+
+Data cleaning (same as done in earlier lectures).  
+```{r}
+credit = credit %>% filter(RevolvingUtilizationOfUnsecuredLines < 2)
+credit = credit %>% filter(DebtRatio < 5)
+credit = credit %>% filter(MonthlyIncome < 20000) %>% drop_na()
+credit = credit %>% filter(NumberOfOpenCreditLinesAndLoans < 40)
+credit = credit %>% filter(NumberOfTimes90DaysLate < 10)
+credit = credit %>% filter(NumberRealEstateLoansOrLines < 10)
+credit = credit %>% filter(NumberOfDependents < 10)
+```
+
+Now we'll split the data.  
+```{r}
+set.seed(123) 
+train.rows = createDataPartition(y = credit$SeriousDlqin2yrs, p=0.7, list = FALSE) #70% in training
+train = credit[train.rows,] 
+test = credit[-train.rows,]
+```
+
+Let's build a classification tree.  
+```{r}
+tree1 = rpart(SeriousDlqin2yrs  ~., train, method="class")
+fancyRpartPlot(tree1)
+```
+
+```{r}
+printcp(tree1)
+plotcp(tree1)
+```
+
+Predictions on training set  
+```{r}
+treepred = predict(tree1, train, type = "class")
+head(treepred)
+```
+
+Caret confusion matrix and accuracy, etc. calcs  
+```{r}
+confusionMatrix(treepred,train$SeriousDlqin2yrs,positive="Yes") #predictions first then actual
+```
+
+Predictions on testing set  
+```{r}
+treepred_test = predict(tree1, test, type = "class")
+head(treepred_test)
+```
+
+Caret confusion matrix and accuracy, etc. calcs  
+```{r}
+confusionMatrix(treepred_test,test$SeriousDlqin2yrs,positive="Yes") #predictions first then actual
+```
+
+
+
+

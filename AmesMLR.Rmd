@@ -1,0 +1,130 @@
+---
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+---
+## Multiple Linear Regression
+In this example, we demonstrate multiple linear regression model-building techniques. The dataset is the Ames (Iowa) home sale price data. To make things more manageable, this large dataset is reduced to eleven variables (ten predictors and one response).  
+
+Begin by loading necessary packages. As usual, you will need to install any of these packages that have not been previously installed.    
+```{r}
+library(tidyverse) #tidyverse set of packages and functions
+library(GGally) #create ggcorr and ggpairs plots
+library(ggcorrplot) #create an alternative to ggcorr plots
+library(MASS) #access to forward and backward selection algorithms
+library(leaps) #best subset selection
+```
+
+Read in the data.    
+```{r}
+ames = read_csv("AmesData.csv")
+```
+
+I've gone ahead and selected some important variables. Store these variables in a data frame named "ames2". You may discard the "ames" data frame if you wish. However, since we are dealing with relatively small datasets, it will be OK to keep both datasets in our RStudio environment.  
+```{r}
+ames2 = ames %>% dplyr::select("SalePrice", "OverallQual", "GrLivArea", "GarageCars", "GarageArea", "TotalBsmtSF", "1stFlrSF", "FullBath", "YearBuilt", "YearRemodAdd", "TotRmsAbvGrd")
+```
+
+**IMPORTANT NOTE ABOUT ABOVE CODE**: If you carefully read the line of code above you would notice that I used "dplyr::select" rather than the usual "select". I had to do this because the "MASS" and "dplyr" (part of the Tidyverse) packages both have a function called "select". R does not know which function I am trying to use. I used "dplyr::select" to indicate that I wanted to use the "select" function from the "dplyr" package.  
+
+Summarize and examine the structure of the data. See the note about the use of "str" for data that is brought into R via the "read_csv" function (part of the Tidyverse).    
+```{r}
+#str(ames) #the "read_csv" function creates attributes that persist even after manipulation (use of select in this case), this makes "str" pretty messy
+summary(ames2) #statistical summary
+glimpse(ames2) #use of glimpse to hide the read_csv attributes (there are a bunch of them because of the 81 columns in original data)
+```
+
+**IMPORTANT NOTE:** There are no categorical variables in this reduced dataset. There are some interval or ordinal variables likes "OverallQual", "FullBath", etc.   
+
+### Data Exploration
+Begin exploring the data by looking at a plot of our response variable only (choose a histogram for a single quanitative variable)  
+
+```{r}
+ggplot(ames2, aes(x=SalePrice)) + geom_histogram() + theme_bw()
+```
+
+Notice that "SalePrice" is reported in scientific notation (e.g., 2e+05 = 200,000). The data is somewhat skewed with most homes having "SalePrice" values less than about $300,00. There are some (but not many) very expensive homes with high prices. This brings us to a point of having to make a decision: Do we care about trying to predict the prices of these outlier (high price) homes? If not, we could make a reasonable argument to remove them from our dataset. If we wish to keep these homes in our dataset, we should be prepared to deal with modeling results that might not be as strong as we would hope.  
+
+Next we look at correlation. This is a logical step since all of our variables are quantitative.    
+```{r}
+#use "ggcorr" to create a correlation matrix with labels and correlation reported to two decimals
+ggcorr(ames2, label = "TRUE", label_round = 2) 
+
+#Alternative using the "ggcorrplot" function
+corr = round(cor(ames2), 2)
+ggcorrplot(corr, hc.order = TRUE, type = "lower",
+   lab = TRUE)
+```
+All of the variables in the dataset are positively correlated with the response variable (SalePrice).  They are also all positively correlated with each other.  
+
+Use the "ggpairs" function to plot all of the variables. There are too many variables to easily display in a single "ggpairs" plot. To see what I mean you can try to run ggpairs(ames2) and see what you get. 
+```{r}
+ggpairs(ames2, columns = c("GarageArea", "GarageCars","1stFlrSF", "TotalBsmtSF", "OverallQual","SalePrice"))
+ggpairs(ames2, columns = c("TotRmsAbvGrd","GrLivArea","FullBath","YearRemodAdd","YearBuilt","SalePrice"))
+```
+
+We look primarily, at the bottom row in each of the "ggpairs" plots. Here we see that as each potential predictor increases, the "SalePrice" variable increases also. This is as we would expect from looking at the correlation matrix. Notice by carefully looking at the plots in the last rows, we can see that the this increase may not be linear. To see an example of this in better detail, examine the plot below for "SalePrice" and "OverallQual".
+
+```{r}
+ggplot(ames2, aes(x=OverallQual, y=SalePrice)) + geom_point() + theme_bw() #I like the clean look from theme_bw()
+```
+
+In the plot above, there looks to be a bit of curvature to the data. We'll see this in a more pronounced way when we build our first model.  
+
+### Models
+The first model we'll build uses the variable that is best correlated with "SalePrice", "OverallQual". This is a univariate (simple) linear regression model. We also plot this model.  
+```{r}
+mod1 = lm(SalePrice ~ OverallQual, ames2)
+summary(mod1)
+ggplot(ames2, aes(x=OverallQual, y=SalePrice)) + geom_point() + geom_smooth(method = lm, se = FALSE) + theme_bw()
+```
+Notice that this model tends to underpredict low and high quality homes. Homes with intermediate quality (between roughly 4 and 8) seem to predicted fairly well.  
+
+### Stepwise Regression Methods
+Next we'll look at automated methods to do forward and backward selection for multiple (multivariate) linear regression models. Recall that in forward selection we start with an empty model (no predictor variables) and add variables one at time to attempt to improve the model. We stop when there is no further opportunity for improvement. Backward selection works similarly, but starts with a model with all of the predictors and removes variables one at time, stopping when no further improvement can occur.  
+
+Start by building two models: One model that contains all of the predictors and one that is empty.
+```{R}
+allmod = lm(SalePrice ~., ames2) #use the ~. to include all predictors rather than typing them all in
+summary(allmod)
+
+emptymod = lm(SalePrice ~1, ames2) #use ~1 to build an empty model
+summary(emptymod)
+```
+
+Backward stepwise  
+```{r}
+#backward
+backmod = stepAIC(allmod, direction = "backward", trace = TRUE) #trace = TRUE shows how the model is built (which variables are removed)
+summary(backmod)
+```
+
+Forward stepwise
+```{r}
+#forward
+forwardmod = stepAIC(emptymod, direction = "forward", scope=list(upper=allmod,lower=emptymod),
+                      trace = TRUE) #trace = TRUE shows how the model is built (which variables                                       are added)
+summary(forwardmod) #note multicollinearity with FullBath with a negative coefficient
+
+#plot to show multicollinearity
+ggplot(ames2, aes(x=FullBath, y=SalePrice)) + geom_point() + theme_bw()
+```
+
+###Best subset
+```{r}
+bestsubmod = regsubsets(SalePrice ~ ., ames2, nvmax = 10, method = "exhaustive")
+summary(bestsubmod)
+```
+
+```{r}
+regsummary = summary(bestsubmod) #store model summary in an object
+plot(regsummary$adjr2, xlab = "Number of Variables", ylab = "Adjusted R^2") #plot Adjusted R^2 by number of variables in model
+which.max(regsummary$adjr2) #return number of variables corresponding to highest Adjusted R^2
+```
+
+Best model is the one with 9 variables.  
+```{r}
+bestbestsubmod = lm(SalePrice ~. -TotRmsAbvGrd, ames2)
+summary(bestbestsubmod)
+```

@@ -1,0 +1,81 @@
+## Classification Tree Example
+
+Libraries  
+```{r}
+library(tidyverse)
+library(caret) #for splitting functions
+library(rpart) #for classification trees
+library(RColorBrewer) #better visualization of classification trees
+library(rattle) #better visualization of classification trees
+```
+
+Load data    
+```{r}
+admit = read_csv("Admission.csv")
+```
+
+Structure and summary
+```{R}
+str(admit)
+summary(admit)
+```
+
+Factor conversion. Convert the response variable SeriousDlqin2yrs.
+```{r}
+admit = admit %>% mutate(Admission_YN = as.factor(Admission_YN)) %>% 
+  mutate(Admission_YN = fct_recode(Admission_YN, "No" = "0", "Yes" = "1" )) 
+
+str(admit)
+```
+
+Now we'll split the data.  
+```{r}
+set.seed(123) 
+train.rows = createDataPartition(y = admit$Admission_YN, p=0.7, list = FALSE) #70% in training
+train = admit[train.rows,] 
+test = admit[-train.rows,]
+```
+
+Let's build a classification tree.  
+```{r}
+tree1 = rpart(Admission_YN  ~., train, method="class")
+fancyRpartPlot(tree1)
+```
+
+```{r}
+printcp(tree1)
+plotcp(tree1)
+```
+Prune the tree (at minimum cross-validated error)  
+```{r}
+tree2 = prune(tree1,cp= tree1$cptable[which.min(tree1$cptable[,"xerror"]),"CP"])
+#most of the code in the line above can be left untouched. Just change tree1 to the name of your tree model (if it's not called tree1)
+fancyRpartPlot(tree2)
+```
+
+
+Predictions on training set  
+```{r}
+treepred = predict(tree2, train, type = "class")
+head(treepred)
+```
+
+Caret confusion matrix and accuracy, etc. calcs  
+```{r}
+confusionMatrix(treepred,train$Admission_YN,positive="Yes") #predictions first then actual
+```
+
+Predictions on testing set  
+```{r}
+treepred_test = predict(tree2, newdata=test, type = "class")
+head(treepred_test)
+```
+
+Caret confusion matrix and accuracy, etc. calcs  
+```{r}
+confusionMatrix(treepred_test,test$Admission_YN,positive="Yes") #predictions first then actual
+```
+
+
+
+

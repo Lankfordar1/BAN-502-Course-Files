@@ -1,0 +1,104 @@
+## Another Random Forest
+
+```{r}
+options(tidyverse.quiet = TRUE)
+library(tidyverse)
+library(mice) #package for imputation
+library(VIM) #visualizing missingness
+library(ranger) #for random forests
+library(caret)
+```
+
+Load data from the CSData.csv file.  
+```{r}
+credit = read_csv("CSData.csv")
+```
+
+Structure and summary
+```{R}
+str(credit)
+summary(credit)
+```
+
+Factor conversion. Convert the response variable SeriousDlqin2yrs.
+```{r}
+credit = credit %>% mutate(SeriousDlqin2yrs = as.factor(SeriousDlqin2yrs)) %>% 
+  mutate(SeriousDlqin2yrs = fct_recode(SeriousDlqin2yrs, "No" = "0", "Yes" = "1" )) 
+
+str(credit)
+```
+
+Data cleaning (same as done in earlier).  
+```{r}
+credit = credit %>% filter(RevolvingUtilizationOfUnsecuredLines < 2)
+credit = credit %>% filter(DebtRatio < 5)
+credit = credit %>% filter(MonthlyIncome < 20000) %>% drop_na()
+credit = credit %>% filter(NumberOfOpenCreditLinesAndLoans < 40)
+credit = credit %>% filter(NumberOfTimes90DaysLate < 10)
+credit = credit %>% filter(NumberRealEstateLoansOrLines < 10)
+credit = credit %>% filter(NumberOfDependents < 10)
+```
+
+Now we'll split the data.  
+```{r}
+set.seed(123) 
+train.rows = createDataPartition(y = credit$SeriousDlqin2yrs, p=0.7, list = FALSE) #70% in training
+train = credit[train.rows,] 
+test = credit[-train.rows,]
+```
+
+Random forest with caret
+```{r}
+fit_control = trainControl(method = "cv",
+                           number = 10) #set up 10 fold cross-validation
+
+set.seed(123)
+rf_fit = train(x=as.matrix(train[,-1]), y=as.matrix(train$SeriousDlqin2yrs),    
+                method = "ranger",  
+                importance = "permutation",
+                trControl = fit_control)
+#note the as.matrix command. Passing a tibble to ranger can result in warnings.
+```
+
+Save the model to a file to load later (if needed)  
+```{r}
+# saveRDS(rf_fit, "rf_fit.rds")
+```
+
+Load the model  
+```{r}
+# rf_fit = readRDS("rf_fit.rds")
+```
+
+Check out random forest details  
+```{r}
+varImp(rf_fit)
+rf_fit
+```
+
+Predictions  
+```{r}
+predRF = predict(rf_fit)
+head(predRF)
+```
+
+Confusion matrix
+```{r}
+confusionMatrix(predRF, train$SeriousDlqin2yrs, positive = "Yes")
+```
+
+Predictions on test
+```{r}
+predRF_test = predict(rf_fit, newdata = test)
+```
+
+Confusion matrix
+```{r}
+confusionMatrix(predRF_test, test$SeriousDlqin2yrs, positive = "Yes")
+```
+
+
+
+
+
+

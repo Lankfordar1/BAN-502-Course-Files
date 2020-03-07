@@ -1,0 +1,106 @@
+---
+title: "Module 4 RF Assignment"
+author: "Austin Lankford"
+date: "2/17/2020"
+output: word_document
+---
+
+
+```{r}
+library(tidyverse)
+library(caret)
+library(ranger)
+```
+
+
+```{r}
+Blood = read.csv("Blood.csv")
+```
+
+
+```{r}
+Blood = Blood %>% mutate(DonatedMarch = as_factor(as.character(DonatedMarch))) %>%
+mutate(DonatedMarch = fct_recode(DonatedMarch,
+"No" = "0",
+"Yes" = "1"))
+
+```
+
+
+
+
+# Task 1: Split the dataset into training (70%) and testing (30%) sets. Use set.seed of 1234.
+
+```{r}
+set.seed(17)
+train.rows = createDataPartition(y = Blood$DonatedMarch, p = 0.7, list = FALSE)
+train = Blood[train.rows,]
+test = Blood[-train.rows,]
+```
+
+
+# Task 2: Create a random forest model on the training set to predict DonatedMarch using all of the variables in the dataset. Use caret’s trainControl function to set up 10 fold cross-validation. Use a random number seed of 123. Use 100 trees (Note you can specify the number of trees by adding a line num.trees = 100 to the rf_fit block of code).
+
+
+
+```{r}
+fit_control = trainControl(method = "cv",
+                           number = 10) 
+#rf_fit = train(DonatedMarch ~.,
+
+set.seed(123)
+rf_fit = train(x=as.matrix(train[,-5]), y=as.matrix(train$DonatedMarch),    
+                method = "ranger",  
+                importance = "permutation",
+                trControl = fit_control)
+
+```
+
+
+# Task 3: Using varImp, what is the most important variable in the model, what is the least important?
+
+### The most important is the Total_Donated variables where the Mnths_Since_First is the least important.
+
+```{r}
+varImp(rf_fit)
+rf_fit
+```
+
+# Task 4: Use the model to develop predictions on the training set. Use the “head” function to display the first six predictions.
+
+```{r}
+predRF = predict.train(rf_fit, train)
+head(predRF)
+```
+
+# Task 5: Use the model to create a confusion matrix using caret’s confusionMatrix function for the trainingset. What is the accuracy, sensitivity, and specificity of the model?
+
+### Our sensitivity is .67, specificity is .98 and accuracy is .91
+
+```{r}
+confusionMatrix(predRF, train$DonatedMarch, positive = "Yes")
+```
+
+# Task 6: How does the accuracy of the model compare to a naive model that assumes that all observations are in the majority class?
+
+### The Naive model would result in an accuracy of .76, so our model at .91 is better.
+
+
+# Task 7: Use the model to develop predictions on the test set. Develop a confusion matrix. How does the model perform on the testing set?
+
+### The model is less specific, sensitive, and accurate all around but not substantially so in most cases. I would say this is still a viable model.
+
+```{r}
+predRF = predict(rf_fit,Blood)
+head(predRF)
+```
+
+```{r}
+confusionMatrix(predRF, Blood$DonatedMarch, positive = "Yes")
+```
+
+# Task 8 Comment on how this model might be used in the “real-world.” Would you recommend this model for real-world use? What if any concerns would you have about using the model?
+
+### This model is a good starting point for real world use. This could be used as a base model for a machine learning algorithm with new data points being submitted daily for auto self-correction. In this case, if someone wanted to know who dontated in MArch, it could give an indication of blood supply that month to predict blood availability and thus blood shortages and used to plan accordingly.
+
+

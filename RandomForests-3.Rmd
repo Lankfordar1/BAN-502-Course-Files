@@ -1,0 +1,97 @@
+## Random Forests
+
+```{r}
+options(tidyverse.quiet = TRUE)
+library(titanic)
+library(tidyverse)
+library(mice) #package for imputation
+library(VIM) #visualizing missingness
+library(ranger) #for random forests
+library(caret)
+```
+
+Read in dataset   
+```{r}
+titanic = titanic::titanic_train
+```
+
+Structure and summary
+```{r}
+str(titanic)
+summary(titanic)
+```
+
+Factor conversion and recoding  
+```{r}
+titanic = titanic %>% mutate(Survived = as.factor(Survived)) %>% 
+  mutate(Survived = fct_recode(Survived, "No" = "0", "Yes" = "1" )) %>%
+  mutate(Pclass = as.factor(Pclass)) %>% mutate(Sex = as.factor(Sex)) %>%
+  mutate(Embarked = as.factor(Embarked)) %>% 
+  mutate(Embarked = fct_recode(Embarked,"Unknown"="","Cherbourg"="C","Southampton"="S","Queenstown"="Q"))
+
+titanic$Cabin[titanic$Cabin==""] = NA #convert blanks in cabin to NA
+
+str(titanic)
+```
+
+Column-wise deletion of the "Cabin" variable.  
+```{r}
+titanic = titanic %>% select(-Cabin) 
+vim_plot = aggr(titanic, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+
+```{r}
+#select only variables relevant to our analysis
+titanic = titanic %>% select(c("Survived","Pclass","Sex","Age","SibSp","Parch","Embarked"))
+
+imp_age = mice(titanic, m=1, method='pmm', printFlag=FALSE)
+summary(imp_age)
+```
+
+Merge the imputed values into our titanic data frame  
+```{r}
+titanic_complete = complete(imp_age) 
+summary(titanic_complete)
+```
+
+###Building Random Forest Model with Caret
+Note use of non-formula interface due to caret and ranger's handling of factors. The non-formula interface leaves the categorical variables as factors (usually desirable) while the formula interface converts to dummy variables.
+
+Random forest
+```{r}
+fit_control = trainControl(method = "cv",  
+                           number = 10) #set up 10 fold cross-validation
+
+#rf_fit = train(Survived ~.,
+
+set.seed(123)  
+rf_fit = train(x=titanic_complete[,-1], y=titanic_complete$Survived,
+                 method = "ranger", 
+                 importance = "permutation",
+                 trControl = fit_control)
+#notice exclusion of "data = " line in block of code above. Not needed as data is explicitly indicated via non-formula interface
+```
+
+Check out random forest details  
+```{r}
+varImp(rf_fit)
+rf_fit
+```
+
+Predictions  
+```{r}
+predRF = predict.train(rf_fit, titanic_complete)
+head(predRF)
+```
+
+Confusion matrix
+```{r}
+confusionMatrix(predRF, titanic_complete$Survived, positive = "Yes")
+```
+
+
+
+
+
+
+

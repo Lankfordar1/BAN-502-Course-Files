@@ -1,0 +1,68 @@
+##Dealing with Missing Data
+
+```{r}
+options(tidyverse.quiet = TRUE)
+library(titanic)
+library(tidyverse)
+library(mice) #package for imputation
+library(VIM) #visualizing missingness
+```
+
+Read in dataset   
+```{r}
+titanic = titanic::titanic_train
+```
+Structure and summary
+```{r}
+str(titanic)
+summary(titanic)
+```
+
+Factor conversion and recoding  
+```{r}
+titanic = titanic %>% mutate(Survived = as.factor(Survived)) %>% 
+  mutate(Survived = fct_recode(Survived, "No" = "0", "Yes" = "1" )) %>%
+  mutate(Pclass = as.factor(Pclass)) %>% mutate(Sex = as.factor(Sex)) %>%
+  mutate(Embarked = as.factor(Embarked)) %>% 
+  mutate(Embarked = fct_recode(Embarked,"Unknown"="","Cherbourg"="C","Southampton"="S","Queenstown"="Q"))
+
+titanic$Cabin[titanic$Cabin==""] = NA #convert blanks in cabin to NA
+
+str(titanic)
+```
+
+View missingness  
+```{r}
+vim_plot = aggr(titanic, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+#the cex.axis reduces size of text on x-axis so labels fit better
+```
+
+Column-wise deletion of the "Cabin" variable.  
+```{r}
+titanic = titanic %>% select(-Cabin) 
+vim_plot = aggr(titanic, numbers = TRUE, prop = c(TRUE, FALSE),cex.axis=.7)
+```
+If we were to do row-wise deletion of the Age variable, we would discard 177 rows of data.   
+
+The code to do row-wise deletion of any rows with NAs is:  
+titanic = titanic %>% drop_na(Age)  
+
+Let's use the "mice" package to do imputation instead.  
+```{r}
+#select only variables relevant to our analysis
+titanic = titanic %>% select(c("Survived","Pclass","Sex","Age","SibSp","Parch","Embarked"))
+
+imp_age = mice(titanic, m=1, method='pmm', printFlag=FALSE)
+summary(imp_age)
+```
+
+```{r}
+densityplot(imp_age, ~Age) #red imputed, blue original
+```
+
+Merge the imputed values into our titanic data frame  
+```{r}
+titanic_complete = complete(imp_age) 
+summary(titanic_complete)
+```
+

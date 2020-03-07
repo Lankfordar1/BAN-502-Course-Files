@@ -1,0 +1,156 @@
+---
+title: "Module 2 Assignment 2 Multiple Linear Regression"
+author: "Austin Lankford"
+date: "2/3/2020"
+output: word_document
+---
+
+```{r}
+library(tidyverse)
+library(GGally)
+library(MASS)
+library(car)
+library(gridExtra)
+```
+
+```{r}
+library(readr)
+hour <- read_csv("hour.csv")
+View(hour)
+```
+
+# Why we convert the variables to factors
+## These variables are converted to factors so that they may be viewed as a specific input. Such that all instances of X occurred in factor A, B, C, 1, 2, 3, etc. So that things like traffic times can be viewed as proportionality weighted during times like rush hour.
+
+```{r}
+hour = hour %>% mutate(season = as_factor(as.character(season))) %>%
+mutate(season = fct_recode(season,
+"Spring" = "1",
+"Summer" = "2",
+"Fall" = "3",
+"Winter" = "4"))
+
+```
+
+```{r}
+hour = hour %>% mutate(yr = as_factor(as.character(yr)))
+hour = hour %>% mutate(mnth = as_factor(as.character(mnth)))
+hour = hour %>% mutate(hr = as_factor(as.character(hr)))
+```
+
+```{r}
+hour = hour %>% mutate(holiday = as_factor(as.character(holiday))) %>%
+mutate(holiday = fct_recode(holiday,
+"NotHoliday" = "0",
+"Holiday" = "1"))
+```
+
+```{r}
+hour = hour %>% mutate(workingday = as_factor(as.character(workingday))) %>%
+mutate(workingday = fct_recode(workingday,
+"NotWorkingday" = "0",
+"Workingday" = "1"))
+```
+
+```{r}
+hour = hour %>% mutate(weathersit = as_factor(as.character(weathersit))) %>%
+mutate(weathersit = fct_recode(weathersit,
+"NoPrecip" = "1",
+"Misty" = "2",
+"LightPrecip" = "3",
+"HeavyPrecip" = "4"))
+```
+
+```{r}
+glimpse(hour)
+```
+
+# Hum, atemp, temp, and nstant are most correlated with count.
+
+```{r}
+ggcorr(hour)
+```
+
+
+```{r}
+
+
+```
+
+```{r}
+ggplot(hour) +
+ aes(x = mnth, y = count) +
+ geom_boxplot(adjust = 5L, scale = "area", fill = "#0c4c8a") +
+ theme_minimal()
+```
+
+```{r}
+ggplot(hour) +
+ aes(x = hr, y = count) +
+ geom_boxplot(adjust = 5L, scale = "area", fill = "#0c4c8a") +
+ theme_minimal()
+```
+
+```{r}
+ggplot(hour) +
+ aes(x = weathersit, y = count) +
+ geom_boxplot(adjust = 5L, scale = "area", fill = "#0c4c8a") +
+ theme_minimal()
+```
+
+```{r}
+ggplot(hour) +
+ aes(x = season, y = count) +
+ geom_boxplot(adjust = 5L, scale = "area", fill = "#0c4c8a") +
+ theme_minimal()
+```
+
+# It would stand to reason that the count of rentals would be higher during normal day hours and during nicer weather given the desireable conditions for riding bikes.
+
+```{r}
+emptymod = lm(count ~1, hour) 
+summary(emptymod)
+
+```
+```{r}
+allmod = lm(count ~ instant + dteday + season + yr + mnth + hr + holiday + weekday + workingday + weathersit + temp + atemp + hum + windspeed + casual + registered, hour,) 
+summary(allmod) 
+
+```
+
+```{r}
+forwardmod = stepAIC(emptymod, direction = "forward", scope=list(upper=allmod,lower=emptymod), trace = TRUE)
+```
+
+```{r}
+hour2 = hour %>% dplyr::select(-c(instant, dteday, registered, casual))
+```
+
+```{r}
+emptymod2 = lm(count ~1, hour) 
+summary(emptymod2)
+
+allmod2 = lm(count ~ + season + yr + mnth + hr + holiday + weekday + workingday + weathersit + temp + atemp + hum + windspeed, hour,) 
+summary(allmod2) 
+```
+
+## In the forwardwise step model, the variables selected are Step:  AIC=160711.7count ~ hr + atemp + yr + weathersit + season + mnth + hum + weekday + holiday + windspeed + temp + workingday
+
+```{r}
+forwardmod2 = stepAIC(emptymod2, direction = "forward", scope=list(upper=allmod2,lower=emptymod2), trace = TRUE)
+```
+
+## The variables selected by the backmod are Start:  AIC=160711.7 count ~ +season + yr + mnth + hr + holiday + weekday + workingday + weathersit + temp + atemp + hum + windspeed
+
+```{r}
+backmod2 = stepAIC(allmod2, direction = "backward", trace = TRUE) 
+```
+
+```{r}
+summary(forwardmod2)
+summary(backmod2)
+```
+
+## The forward and back stepwise model tests have resulted in the same variable combination with the same adjusted R Squared. 
+
+## WorkingDay is likely being kicked out because the weekday variable represents the weekend and the holiday variable represents the holidays so working day is a redundant consideration.

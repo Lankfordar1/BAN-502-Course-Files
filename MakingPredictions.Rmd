@@ -1,0 +1,47 @@
+## Making Predictions with Simple Linear Regression Model
+
+Needed libraries  
+```{r}
+library(tidyverse)
+```
+
+Read-in the data. Before doing this make sure that you have placed the CreditData.csv file (downloadable from Canvas) in your project's working directory.  
+
+```{r}
+credit = read_csv("CreditData.csv")
+```
+
+Get rid of missing data rows  
+```{r}
+credit = credit %>% drop_na() #delete any row with an NA value
+```
+
+Build a regression model with AnnualIncome to predict AnnualCharges.  
+```{r}
+mod1 = lm(AnnualCharges ~ AnnualIncome, credit) #create linear regression model
+summary(mod1) #examine the model
+```
+
+Prediction for AnnualIncomes of 75 and 100?  
+```{r}
+#Manually
+3146.361 + 121.355*75
+3146.361 + 121.355*100
+
+#Using predict function
+testdata = data.frame(AnnualIncome = c(75,100))
+predict(mod1, newdata = testdata, interval = "predict")
+```
+
+```{r}
+#Prediction intervals
+temp_var = predict(mod1, interval = "prediction")
+new_df = cbind(credit, temp_var)
+
+ggplot(new_df, aes(x = AnnualIncome, y = AnnualCharges)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  geom_line(aes(y=lwr), color = "red", linetype = "dashed") +
+  geom_line(aes(y=upr), color = "red", linetype = "dashed") +
+  theme_bw() 
+```
